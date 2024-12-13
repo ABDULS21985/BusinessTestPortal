@@ -7,6 +7,7 @@ import (
 
 	"github.com/ABDULS21985/test-portal/services"
 	"github.com/ABDULS21985/test-portal/utils"
+	"github.com/google/uuid"
 )
 
 type AuthController struct {
@@ -44,4 +45,31 @@ func (c *AuthController) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.RespondWithJSON(w, http.StatusOK, response)
+}
+
+// Login handles user login and JWT generation
+func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		UserID string `json:"user_id"`
+		Role   string `json:"role"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	userID, err := uuid.Parse(request.UserID)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Invalid user ID format")
+		return
+	}
+
+	token, err := c.authService.GenerateToken(userID, request.Role)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Could not generate token")
+		return
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, map[string]string{"token": token})
 }

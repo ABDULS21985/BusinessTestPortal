@@ -1,7 +1,8 @@
-// routes/routes.go
 package routes
 
 import (
+	"net/http"
+
 	"github.com/ABDULS21985/test-portal/controllers"
 	"github.com/ABDULS21985/test-portal/middleware"
 
@@ -9,7 +10,7 @@ import (
 )
 
 // SetupRoutes initializes all API routes and associates them with their respective controllers
-func SetupRoutes(router *mux.Router, authController *controllers.AuthController, userController *controllers.UserController, passwordResetController *controllers.PasswordResetController, jwtSecret []byte) {
+func SetupRoutes(router *mux.Router, authController *controllers.AuthController, userController *controllers.UserController, passwordResetController *controllers.PasswordResetController, authMiddleware *middleware.AuthMiddleware) {
 	api := router.PathPrefix("/api").Subrouter()
 
 	// Auth Routes (Public)
@@ -25,10 +26,15 @@ func SetupRoutes(router *mux.Router, authController *controllers.AuthController,
 
 	// Protected User Routes
 	protected := api.PathPrefix("/users").Subrouter()
-	protected.Use(middleware.NewAuthMiddleware(jwtSecret)) // Pass JWT secret
+	protected.Use(authMiddleware.RequireAuth)
 	protected.HandleFunc("/{id}", userController.GetUserProfile).Methods("GET")
 	protected.HandleFunc("/{id}", userController.UpdateUserProfile).Methods("PUT")
 	protected.HandleFunc("/{id}", userController.DeleteUser).Methods("DELETE")
 
-	// Additional routes can be added here
+	// Additional protected routes
+	admin := router.PathPrefix("/protected").Subrouter()
+	admin.Use(authMiddleware.RequireAuth)
+	admin.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Welcome, Admin!"))
+	}).Methods("GET")
 }

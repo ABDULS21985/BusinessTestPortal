@@ -6,6 +6,7 @@ import (
 
 	"github.com/ABDULS21985/test-portal/config"
 	"github.com/ABDULS21985/test-portal/controllers"
+	"github.com/ABDULS21985/test-portal/middleware"
 	"github.com/ABDULS21985/test-portal/migrations"
 	"github.com/ABDULS21985/test-portal/repositories"
 	"github.com/ABDULS21985/test-portal/routes"
@@ -37,7 +38,8 @@ func main() {
 
 	// Setup router
 	router := mux.NewRouter()
-	routes.SetupRoutes(router, authController, userController, passwordResetController, []byte(cfg.JWTSecret))
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+	routes.SetupRoutes(router, authController, userController, passwordResetController, authMiddleware)
 
 	// Start server
 	log.Printf("Server running on port %s", cfg.Port)

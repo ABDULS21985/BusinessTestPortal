@@ -17,6 +17,9 @@ import (
 // AuthService defines the contract for authentication-related business logic
 type AuthService interface {
 	AuthenticateUser(email, password string) (*models.User, string, error)
+	GenerateToken(userID uuid.UUID, role string) (string, error)
+	ValidateToken(token string) (*jwt.Token, error)
+	GetClaimsFromToken(token string) (jwt.MapClaims, error)
 }
 
 type authService struct {
@@ -67,4 +70,40 @@ func (s *authService) AuthenticateUser(email, password string) (*models.User, st
 	}
 
 	return user, tokenString, nil
+}
+
+// GenerateToken generates a JWT for a given user ID and role
+func (a *authService) GenerateToken(userID uuid.UUID, role string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"role":    role,
+		"exp":     time.Now().Add(time.Hour * 72).Unix(), // Token valid for 72 hours
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(a.jwtSecret)
+}
+
+// ValidateToken validates a given JWT token
+func (a *authService) ValidateToken(token string) (*jwt.Token, error) {
+	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return a.jwtSecret, nil
+	})
+}
+
+// GetClaimsFromToken extracts claims from a validated token
+func (a *authService) GetClaimsFromToken(token string) (jwt.MapClaims, error) {
+	parsedToken, err := a.ValidateToken(token)
+	if err != nil || !parsedToken.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("unable to parse claims")
+	}
+
+	return claims, nil
 }
